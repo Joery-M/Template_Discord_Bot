@@ -1,6 +1,6 @@
 const Discord = require('discord.js');
 const config = require('./config.json');
-const prefixConfig = require("./prefixes.json")
+const prefixConfig = require("./misc/prefixes.json")
 const keys = require('dotenv').config().parsed
 const stringSimilarity = require("string-similarity")
 const fs = require('fs');
@@ -32,11 +32,11 @@ client.once('ready', () => {
 });
 
 // On Message
-client.on('messageCreate', msg => {
+client.on('messageCreate', async msg => {
     // Define prefix
     if (!prefixConfig[msg.guildId]) {
         prefixConfig[msg.guildId] = "!"
-        fs.writeFileSync("./prefixes.json", JSON.stringify(prefixConfig))
+        fs.writeFileSync("./misc/prefixes.json", JSON.stringify(prefixConfig))
         var curPrefix = "!"
     } else {
         var curPrefix = prefixConfig[msg.guildId]
@@ -51,8 +51,15 @@ client.on('messageCreate', msg => {
     // If command exist
     if (!command) {
         var closestString = stringSimilarity.findBestMatch(commandName, allCommands).bestMatch
-        if (closestString.rating == 0) return
-        msg.channel.send("Did you mean: ``" + closestString.target.charAt(0).toUpperCase() + closestString.target.slice(1) + "``?")
+        var customId = "D-" + closestString.target + ";" + msg.id
+        if (closestString.rating == 0 || customId.length >= 100) return msg.channel.send("I didn't recognise that command, Please use " + curPrefix + "help if you don't know what you're looking for.")
+        var didYouMeanButton = new Discord.MessageButton()
+            .setCustomId(customId)
+            .setLabel("Yes")
+            .setStyle("SUCCESS")
+        var didYouMeanRow = new Discord.MessageActionRow()
+            .addComponents([didYouMeanButton])
+        msg.channel.send({ content: "Did you mean: ``" + closestString.target.charAt(0).toUpperCase() + closestString.target.slice(1) + "``?", components: [didYouMeanRow] })
         return
     };
 
@@ -102,4 +109,20 @@ client.on('messageCreate', msg => {
     }
 });
 
+// On Interaction (Buttons, Menus, slash commands)
+client.on('interactionCreate', async (interaction) => {
+    if (interaction.isButton) {
+        var curInterFile = require("./interactions/button.js")
+    } else if (interaction.isCommand) {
+        var curInterFile = require("./interactions/slash.js")
+    } else if (interaction.isSelectMenu) {
+        var curInterFile = require("./interactions/menu.js")
+    }
+    try {
+        curInterFile.execute(client, interaction, interaction.message.components)
+    } catch (error) {
+        console.error(error);
+        interaction.channel.send('there was an error trying to execute that command!\n\n'+error);
+    }
+})
 client.login(keys.DISCORD_TOKEN);
