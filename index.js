@@ -1,9 +1,13 @@
 const Discord = require('discord.js');
-const config = require('./config.json');
-const prefixConfig = require("./misc/prefixes.json")
+var prefixConfig = require("./misc/prefixes.json")
 const keys = require('dotenv').config().parsed
 const stringSimilarity = require("string-similarity")
 const fs = require('fs');
+
+//to see if prefixconfig has changed
+fs.watchFile("./misc/prefixes.json", (curr, prev) => {
+    prefixConfig = require("./misc/prefixes.json")
+})
 
 const Intents = Discord.Intents.FLAGS
 var myIntents = new Discord.Intents()
@@ -41,8 +45,20 @@ client.on('messageCreate', async msg => {
     } else {
         var curPrefix = prefixConfig[msg.guildId]
     }
-    if (!msg.content.startsWith(curPrefix) || msg.author.bot) return;
+    // See if the message mentions the bot.
+    if (msg.content.includes("<@!" + client.user.id + ">") && msg.author.id !== client.user.id) {
+        if (msg.content.split(" ")[1] && msg.content.split(" ")[0] == "prefix") {
+            var prefix = msg.content.split(" ")[1]
+            prefixConfig[msg.guildId] = prefix
+            fs.writeFileSync("./misc/prefixes.json", JSON.stringify(prefixConfig))
+            return msg.channel.send("Prefix is now: `" + prefix + "`\n\nThis will take effect in about 1-3 seconds.")
+        }
+        msg.channel.send("Hello! my prefix for this server is: `" + curPrefix + "`\n" +
+            "You can change the prefix (if you have the permissions to) using: <@!" + client.user.id + ">` yourPrefix` or: `" + curPrefix + "prefix yourPrefix`"
+        )
+    }
 
+    if (!msg.content.startsWith(curPrefix) || msg.author.bot) return;
     const args = msg.content.slice(curPrefix.length).split(/ +/);
     const commandName = args.shift().toLowerCase();
 
@@ -122,7 +138,8 @@ client.on('interactionCreate', async (interaction) => {
         curInterFile.execute(client, interaction, interaction.message.components)
     } catch (error) {
         console.error(error);
-        interaction.channel.send('there was an error trying to execute that command!\n\n'+error);
+        interaction.channel.send('there was an error trying to execute that command!\n\n' + error);
     }
 })
+
 client.login(keys.DISCORD_TOKEN);
