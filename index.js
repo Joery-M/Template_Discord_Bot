@@ -1,4 +1,8 @@
+const { REST } = require('@discordjs/rest');
+const { Routes } = require('discord-api-types/v9');
 const Discord = require('discord.js');
+const disVoice = require("@discordjs/voice");
+const Vibrant = require("node-vibrant")
 var prefixConfig = require("./misc/prefixes.json")
 const keys = require('dotenv').config().parsed
 const stringSimilarity = require("string-similarity")
@@ -9,10 +13,23 @@ fs.watchFile("./misc/prefixes.json", (curr, prev) => {
     prefixConfig = require("./misc/prefixes.json")
 })
 
-const Intents = Discord.Intents.FLAGS
+// Set intents up
 var myIntents = new Discord.Intents()
-myIntents.add([Intents.GUILDS, Intents.GUILD_MESSAGES, Intents.GUILD_MEMBERS])
-const client = new Discord.Client({ intents: myIntents });
+myIntents.add([
+    "DIRECT_MESSAGES",
+    "DIRECT_MESSAGE_TYPING",
+    "GUILDS",
+    "GUILD_MESSAGES",
+    "GUILD_MEMBERS",
+    "GUILD_PRESENCES",
+    "GUILD_VOICE_STATES",
+    "GUILD_MESSAGE_REACTIONS",
+    "DIRECT_MESSAGE_REACTIONS"
+]);
+const client = new Discord.Client({
+    intents: myIntents,
+    partials: [ "CHANNEL", "REACTION" ]
+});
 client.commands = new Discord.Collection();
 
 // Take commands
@@ -35,27 +52,77 @@ client.once('ready', () => {
     console.log('Logged in as ' + client.user.username + "#" + client.user.discriminator + '!');
 });
 
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    if (!oldState.guild.me.voice || !oldState.guild.me.voice.channel) { return }
+    var guild = client.guilds.cache.get(newState.guild.id)
+    var channel = guild.channels.cache.get(oldState.channelId)
+    // check if user was in same channel as bot
+    if (oldState.channelId !== oldState.guild.me.voice.channelId) { return }
+    if (!oldState.channel) { return }
+    if (oldState.channel.members.size > channel.members.size) {}
+    var memberArray = channel.members
+    var realMemberArray = []
+    memberArray.map(user => user.user.bot).forEach(element => {
+        if (element == false) {
+            realMemberArray.push(element.user)
+        }
+    })
+    if (realMemberArray.length == 0) {
+        try {
+            disVoice.getVoiceConnection(guild.id).destroy()
+        } catch (error) {
+        }
+    }
+});
+
+
 // On Message
 client.on('messageCreate', async msg => {
     // Define prefix
-    if (!prefixConfig[msg.guildId]) {
-        prefixConfig[msg.guildId] = "!"
-        fs.writeFileSync("./misc/prefixes.json", JSON.stringify(prefixConfig))
-        var curPrefix = "!"
-    } else {
-        var curPrefix = prefixConfig[msg.guildId]
+    if (msg.channel.type === "DM") {
+        curPrefix = ""
+    }else{
+        if (!prefixConfig[msg.guildId]) {
+            prefixConfig[msg.guildId] = "!"
+            fs.writeFileSync("./misc/prefixes.json", JSON.stringify(prefixConfig))
+            var curPrefix = "!"
+        } else {
+            var curPrefix = prefixConfig[msg.guildId]
+        }
     }
     // See if the message mentions the bot.
-    if (msg.content.includes("<@!" + client.user.id + ">") && msg.author.id !== client.user.id) {
-        if (msg.content.split(" ")[1] && msg.content.split(" ")[0] == "prefix") {
-            var prefix = msg.content.split(" ")[1]
-            prefixConfig[msg.guildId] = prefix
-            fs.writeFileSync("./misc/prefixes.json", JSON.stringify(prefixConfig))
-            return msg.channel.send("Prefix is now: `" + prefix + "`\n\nThis will take effect in about 1-3 seconds.")
+    var regex = new RegExp("<@(!)?"+client.user.id+">")
+    if (regex.test(msg.content) && msg.member.id !== client.user.id)
+    {
+        var tempArgs = msg.content.split(" ")
+        // Remove mention
+        tempArgs.shift()
+        if (tempArgs[1] && tempArgs[1].includes("<@") && tempArgs[0] == "prefix")
+        {
+            tempArgs.shift()
+            var prefix = tempArgs.join(" ");
+            prefixConfig[ msg.guildId ] = prefix;
+            fs.writeFileSync("./misc/prefixes.json", JSON.stringify(prefixConfig));
+            return msg.channel.send("Prefix is now: `" + prefix + "`\n\nThis will take effect in about 1-3 seconds.");
         }
-        msg.channel.send("Hello! my prefix for this server is: `" + curPrefix + "`\n" +
-            "You can change the prefix (if you have the permissions to) using: <@!" + client.user.id + ">` yourPrefix` or: `" + curPrefix + "prefix yourPrefix`"
-        )
+
+        // Get color
+        var color = (await Vibrant.from(client.user.avatarURL({size: 32, format: 'jpg'})).getPalette()).Vibrant.hex
+        var userImg = client.user.avatarURL({size: 128, format: 'jpg'})
+
+        // Non prefix changing msg
+        let embed = new Discord.MessageEmbed()
+            .setColor(color)
+            .setTitle('Bot Info')
+            .setThumbnail(userImg)
+            .setDescription("Hello. I'm a bot made for the **Koning Willem 1 College**, ICT Academy.\n\nMy main purpose has not been decided yet, but it will come.")
+            .addFields([
+                { name: 'Current Prefix', value: `\`${curPrefix}\``, inline: false },
+            ])
+            .setFooter({text: "You can only change the prefix if you have the permissions to do so.\n"+
+            "You can do so with `"+ curPrefix +"prefix (New Prefix)` or `@"+client.user.username+" (New Prefix)`."})
+
+        msg.channel.send({ embeds: [ embed ] });
     }
 
     if (!msg.content.startsWith(curPrefix) || msg.author.bot) return;
@@ -68,7 +135,12 @@ client.on('messageCreate', async msg => {
     if (!command) {
         var closestString = stringSimilarity.findBestMatch(commandName, allCommands).bestMatch
         var customId = "D-" + closestString.target + ";" + msg.id
-        if (closestString.rating == 0 || customId.length >= 100) return msg.channel.send("I didn't recognise that command, Please use " + curPrefix + "help if you don't know what you're looking for.")
+        if (closestString.rating == 0 || customId.length >= 100){
+            return msg.channel.send({
+                content: "I didn't recognise that command, Please use `" + curPrefix + "help` if you don't know what you're looking for.",
+                components: [twig.Discord.dismissButton]
+            })
+        }
         var didYouMeanButton = new Discord.MessageButton()
             .setCustomId(customId)
             .setLabel("Yes")
@@ -102,7 +174,7 @@ client.on('messageCreate', async msg => {
 
     const now = Date.now();
     const timestamps = cooldowns.get(command.name);
-    const cooldownAmount = (command.cooldown || 3) * 1000;
+    const cooldownAmount = (command.cooldown || 1.5) * 1000;
 
     if (timestamps.has(msg.author.id)) {
         const expirationTime = timestamps.get(msg.author.id) + cooldownAmount;
@@ -110,7 +182,12 @@ client.on('messageCreate', async msg => {
         if (now < expirationTime) {
             // If user is in cooldown
             const timeLeft = (expirationTime - now) / 1000;
-            return msg.reply("please wait " + timeLeft.toFixed(1) + " more second(s) before reusing the ``" + command.name + "`` command.");
+            var s = timeLeft > 1 ? "" : "s";
+            const embed = new Discord.MessageEmbed()
+                .setColor('#ff0000')
+                .setTitle('⏳ Hold your horses!')
+                .setDescription(`Please wait ${timeLeft} more second${s} before reusing the \`${command.name}\` command.`);
+            return msg.channel.send({ embeds: [ embed ] });
         }
     } else {
         timestamps.set(msg.author.id, now);
@@ -120,26 +197,58 @@ client.on('messageCreate', async msg => {
             command.execute(client, msg, args, curPrefix);
         } catch (error) {
             console.error(error);
-            msg.reply('there was an error trying to execute that command!');
+            const embed = new Discord.MessageEmbed()
+                .setColor('#ff0000')
+                .setThumbnail(client.attachments.get("Broken_disc"))
+                .setTitle('Big error lol')
+                .setDescription(error.toString());
+
+            msg.channel.send({ embeds: [ embed ] });
         }
     }
 });
 
 // On Interaction (Buttons, Menus, slash commands)
-client.on('interactionCreate', async (interaction) => {
-    if (interaction.isButton) {
-        var curInterFile = require("./interactions/button.js")
-    } else if (interaction.isCommand) {
-        var curInterFile = require("./interactions/slash.js")
-    } else if (interaction.isSelectMenu) {
-        var curInterFile = require("./interactions/menu.js")
+client.on('interactionCreate', async (interaction) =>
+{
+    if (interaction.isButton())
+    {
+        var curInterFile = require("./interactions/button.js");
+    } else if (interaction.isCommand())
+    {
+        var curInterFile = require("./interactions/slash.js");
+        curInterFile.execute(client, interaction);
+        return;
+    } else if (interaction.isSelectMenu())
+    {
+        var curInterFile = require("./interactions/menu.js");
     }
-    try {
-        curInterFile.execute(client, interaction, interaction.message.components)
-    } catch (error) {
+    try
+    {
+        curInterFile.execute(client, interaction, interaction.message.components);
+    } catch (error)
+    {
         console.error(error);
-        interaction.channel.send('there was an error trying to execute that command!\n\n' + error);
+        const embed = new Discord.MessageEmbed()
+            .setColor('#ff0000')
+            .setThumbnail(client.attachments.get("Broken_disc"))
+            .setTitle('Big error lol')
+            .setDescription(error.toString());
+            
+        interaction.channel.send({ embeds: [ embed ] });
     }
-})
+});
 
-client.login(keys.DISCORD_TOKEN);
+if (keys.TEST_DISCORD_TOKEN) {
+    client.login(keys.TEST_DISCORD_TOKEN);
+}else{
+    client.login(keys.DISCORD_TOKEN);
+}
+
+
+client.on("error", (err) => {
+    console.log(err);
+    disVoice.getVoiceConnections().forEach((connection, key, map) =>{
+        connection.destroy()
+    })
+})

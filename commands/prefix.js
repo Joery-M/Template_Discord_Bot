@@ -4,8 +4,6 @@ const fs = require("fs")
 module.exports = {
     name: "prefix",
     aliases: [],
-    description: "",
-    category: "",
     guildOnly: false,
     memberpermissions: "",
     adminPermOverride: true,

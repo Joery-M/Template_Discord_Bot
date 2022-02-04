@@ -1,0 +1,22 @@
+const Discord = require("discord.js")
+
+module.exports = {
+    name: "play",
+    description: "Play a song from the comfort of your vc.",
+    options: [ {
+        "type": 3,
+        "name": "video",
+        "description": "The YouTube video you want to play.",
+        "required": true
+    } ],
+    /**
+     * @param {Discord.Client} client
+     * @param {Discord.CommandInteraction} interaction 
+     * @param {Array} components
+     * @param {String} curId
+     */
+    async execute (client, interaction)
+    {
+        
+    }
+}

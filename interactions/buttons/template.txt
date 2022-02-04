@@ -1,0 +1,16 @@
+const Discord = require("discord.js")
+
+module.exports = {
+    name: "name",
+    activator: "Activater",
+    /**
+     * @param {Discord.Client} client
+     * @param {Discord.ButtonInteraction} interaction 
+     * @param {Array} components
+     * @param {String} curId
+     */
+    execute (client, interaction, components, curId)
+    {
+        
+    }
+}

@@ -3,8 +3,6 @@ const Discord = require("discord.js")
 module.exports = {
     name: "template",
     aliases: [],
-    description: "",
-    category: "",
     guildOnly: false,
     memberpermissions: "",
     adminPermOverride: true,
@@ -17,7 +15,7 @@ module.exports = {
      * @param {Array} args 
      * @param {String} curPrefix 
      */
-    execute(client, msg, args, curPrefix) {
+    async execute(client, msg, args, curPrefix) {
 
     },
 };
