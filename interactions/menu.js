@@ -2,13 +2,12 @@ const Discord = require("discord.js")
 const fs = require('fs');
 
 module.exports = {
-    name: "button",
     /**
      * @param {Discord.Client} client
      * @param {Discord.SelectMenuInteraction} interaction 
-     * @param {Array} components
      */
-    execute(client, interaction, components) {
+    execute(client, interaction) {
+        var components = interaction.message.components
         client.menuCommands = new Discord.Collection();
         var curId = interaction.customId
 

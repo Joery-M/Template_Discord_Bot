@@ -1,4 +1,4 @@
-const Discord = require("discord.js");
+const Discord = require("discord.js")
 const fs = require('fs');
 
 module.exports = {
@@ -9,10 +9,10 @@ module.exports = {
      */
     execute (client, interaction)
     {
-        client.contextMenuCommands = new Discord.Collection();
+        client.slashCommands = new Discord.Collection();
 
         // Check if interaction was sent via DM's
-        if (!interaction.inGuild)
+        if (!interaction.inGuild())
         {
             let embed = new Discord.MessageEmbed()
                 .setColor('#ff0000')
@@ -23,16 +23,16 @@ module.exports = {
         }
 
         // Take commands
-        const commandFiles = fs.readdirSync('./interactions/slash/').filter(file => file.endsWith('.js'));
+        const commandFiles = fs.readdirSync('./interactions/contextMenu/').filter(file => file.endsWith('.js'));
         for (const file of commandFiles)
         {
-            const command = require('./slash/' + file);
-            client.contextMenuCommands.set(command.name, command);
+            const command = require('./contextMenu/' + file);
+            client.slashCommands.set(command.name, command);
         }
 
         const commandName = interaction.commandName.toUpperCase();
 
-        const command = client.contextMenuCommands.get(commandName) || client.contextMenuCommands.find(cmd => cmd.name && cmd.name.toUpperCase() == commandName);
+        const command = client.slashCommands.get(commandName) || client.slashCommands.find(cmd => cmd.name && cmd.name.toUpperCase() == commandName);
 
         try
         {
@@ -43,7 +43,7 @@ module.exports = {
             const embed = new Discord.MessageEmbed()
                 .setColor('#0099ff')
                 .setTitle('Big error lol')
-                .setDescription('||error at: Trycatch at Slash command execution||')
+                .setDescription('||error at: Trycatch at Context Menu execution||')
                 .addFields([
                     { name: 'Error:', value: error.toString(), inline: false },
                 ]);

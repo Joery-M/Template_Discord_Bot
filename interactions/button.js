@@ -1,15 +1,13 @@
 const Discord = require("discord.js")
 const fs = require('fs');
-const { disableAllButtons } = require("../Twig/discord");
 
 module.exports = {
-    name: "button",
     /**
      * @param {Discord.Client} client
      * @param {Discord.ButtonInteraction} interaction 
-     * @param {Array} components
      */
-    execute(client, interaction, components) {
+    execute(client, interaction) {
+        var components = interaction.message.components
         client.buttonCommands = new Discord.Collection();
         var curId = interaction.customId
 
