@@ -3,12 +3,16 @@ const { Routes } = require('discord-api-types/v9');
 const Discord = require('discord.js');
 const disVoice = require("@discordjs/voice");
 const Vibrant = require("node-vibrant");
-var prefixConfig = require("./misc/prefixes.json");
 const keys = require('dotenv').config().parsed;
 const stringSimilarity = require("string-similarity");
 const twig = require("./Twig");
 const fs = require('fs');
 
+if (!fs.existsSync("./misc/prefixes.json"))
+{
+    fs.writeFileSync("./misc/prefixes.json", "{}");
+}
+var prefixConfig = require("./misc/prefixes.json");
 //to see if prefixconfig has changed
 fs.watchFile("./misc/prefixes.json", (curr, prev) =>
 {
@@ -107,20 +111,22 @@ client.on("ready", async () =>
         commands.create({
             name: value.name,
             type: value.type
-        })
+        });
     });
-    
-    // Remove unused commands
-    var uncachedCommands = await commands.fetch()
-    uncachedCommands.forEach((command) => {
-        var hasCurrentContextCommand = contextCommandMap.has(command.name)
-        var hasCurrentSlashCommand = slashCommandMap.has(command.name)
 
-        if (!hasCurrentContextCommand && !hasCurrentSlashCommand) {
-            commands.delete(command)
+    // Remove unused commands
+    var uncachedCommands = await commands.fetch();
+    uncachedCommands.forEach((command) =>
+    {
+        var hasCurrentContextCommand = contextCommandMap.has(command.name);
+        var hasCurrentSlashCommand = slashCommandMap.has(command.name);
+
+        if (!hasCurrentContextCommand && !hasCurrentSlashCommand)
+        {
+            commands.delete(command);
             console.log(`Deleted command: ${command.name}, since it wasn't used.`);
         }
-    })
+    });
 
     module.exports = {
         globalInfo: {
@@ -140,14 +146,26 @@ client.on("ready", async () =>
 });
 
 
-client.login( keys.TEST_DISCORD_TOKEN ?? keys.DISCORD_TOKEN);
+client.login(keys.TEST_DISCORD_TOKEN ?? keys.DISCORD_TOKEN);
 
-process.on('uncaughtException', (error, origin)=>{
+process.on('uncaughtException', (error, origin) =>
+{
     disVoice.getVoiceConnections().forEach((connection, key, map) =>
     {
-        connection.disconnect()
+        connection.disconnect();
     });
 
-    console.error(error)
-    process.exit(1)
-})
+    console.error(error);
+
+    if (error.name.includes("DISALLOWED_INTENTS"))
+    {
+        console.log(`
+You need to allow the following intents in the Discord dev portal:
+    - PRESENCE INTENT
+    - SERVER MEMBERS INTENT
+    - MESSAGE CONTENT INTENT
+
+Go to: https://discord.com/developers/applications`);
+    }
+    process.exit(1);
+});

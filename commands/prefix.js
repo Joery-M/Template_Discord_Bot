@@ -16,14 +16,20 @@ module.exports = {
      * @param {Array} args 
      * @param {String} curPrefix 
      */
-    execute(client, msg, args, curPrefix) {
+    execute(client, msg, args, curPrefix)
+    {
+        if (!msg.member.permissions.has("ADMINISTRATOR"))
+        {
+            return msg.channel.send("You don't have permissions to change the prefix!")
+        }
         var prefixFile = require("../misc/prefixes.json")
-        if (!args[0] || args[0] == "") {
+        if (!args[0] || args[0] == "")
+        {
             return msg.channel.send("Please provide a prefix.")
         }
         var prefix = args[0]
         prefixFile[msg.guildId] = prefix
         fs.writeFileSync(__dirname + "/../misc/prefixes.json", JSON.stringify(prefixFile))
-        msg.channel.send("Changed the prefix to `"+prefix+"`\n\nThis will take effect in about 1-3 seconds.")
-    },
+        msg.channel.send("Changed the prefix to `" + prefix + "`\n\nThis will take effect in about 1-3 seconds.")
+    }
 };
